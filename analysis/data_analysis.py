@@ -27,9 +27,9 @@ class Dataset:
             self.range[gas] = []
             for j,peak in enumerate(self.peak_indices[gas]):
                 if j == len(self.peak_indices[gas])-1:
-                    self.range[gas].append([peak-100,-1])
+                    self.range[gas].append([peak-180,-1])
                 else:
-                    self.range[gas].append([peak-100,self.peak_indices[gas][j+1]-200])
+                    self.range[gas].append([peak-120,self.peak_indices[gas][j+1]-300])
     
     def fitfunction(self,tT,a,b,c):
         factor = np.exp(-1.0*b/tT[1])
