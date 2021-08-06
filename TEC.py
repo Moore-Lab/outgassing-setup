@@ -127,12 +127,11 @@ def set_output(temp, tec_ser, sleep_time):#, output=None):
     #     make_checksum(power_message)
     #     send_signal(tec_ser, power_message, sleep_time)
 
-def h5store(store, df, i, **kwargs):
+def h5store(store, df):#, i, **kwargs):
     ## copied from https://stackoverflow.com/questions/29129095/save-additional-attributes-in-pandas-dataframe
-    store.put('tec{}'.format(i), df)
+    store.put('tec_temp', df)
     #store.get_storer('rga').attrs.metadata = kwargs
 
-# if __name__ == "__main__":
 
 parser = argparse.ArgumentParser(description="Set the temperature of the TEC")
 
@@ -147,7 +146,7 @@ parser.add_argument('--file_path',
 parser.add_argument('--sleep_time',
                     help='Number of seconds between measurements',
                     type=float,
-                    default=1)
+                    default=.5)
 parser.add_argument('--temp',
                     help='TEC set temperature in Celcius',
                     type=int)
@@ -161,13 +160,26 @@ args = parser.parse_args()
 # Define the TEC temperature controller's serial settings 
 TEC = serial.Serial(args.channel_name, baudrate=230400, parity=serial.PARITY_NONE, stopbits=serial.STOPBITS_ONE, timeout=1)
 
-set_output(args.temp, TEC, args.sleep_time, args.output_power)
-
+#start heating
+tec_table = []
+store = pd.HDFStore(args.file_path)
+set_output(args.temp, TEC, args.sleep_time)#, args.output_power)
 set_temp(args.temp, TEC, args.sleep_time)
-# print('output: {}' .format(output_on))
 
-temps = get_temp(TEC, args.sleep_time)
-print('temperature: {}'.format(temps))
+tec_data = True
+while tec_data:
+    try:
+        #read the current temperature as the tec heats up
+        temps = get_temp(TEC, args.sleep_time)
+        print(temps)
+        measure = pd.DataFrame({'Set Temp': [args.temp], 'Current Temp': [temps]})
+        tec_table.append(measure)
+        h5store(store, measure)
+        time.sleep(.33)
+    except serial.SerialException as e:
+        print(e)
+        tmd_data = False
+
 
 #store = pd.HDFStore(args.file_path)
 #temperatures = pd.DataFrame({'Set temperature': args.temp, 'Current temperature': temps})

@@ -77,7 +77,6 @@ def h5store(store, df):#, i, **kwargs):
 #         print(e)
 #         return [-1, -1]
 
-# if __name__ == "__main__":
 
 parser = argparse.ArgumentParser(description="Read out the pressure of the system at given time intervals")
 
@@ -97,12 +96,11 @@ parser.add_argument('--sleep_time',
 args = parser.parse_args()
 
 # Set up the Amprobe serial object
-tmd = serial.Serial(args.channel_name, baudrate=19200, bytesize=serial.EIGHTBITS, parity=serial.PARITY_EVEN,
+TMD = serial.Serial(args.channel_name, baudrate=19200, bytesize=serial.EIGHTBITS, parity=serial.PARITY_EVEN,
                     stopbits=serial.STOPBITS_ONE, timeout=1, write_timeout=1, inter_byte_timeout=1)
 
 #starting measurements
 tmd_table = []
-n = 0
 store = pd.HDFStore(args.file_path)
 
 
@@ -110,12 +108,12 @@ tmd_data = True
 while tmd_data:
     try:
         #read the temperatures from the thermocouples
-        temperatures = get_temp(tmd)
+        temperatures = get_temp(TMD)
         print(temperatures)
         measure = pd.DataFrame({'Temp 1': [temperatures[0]], 'Temp 2': [temperatures[1]]})
         tmd_table.append(measure)
-        h5store(store, measure)#, n)
-        #n += 1
+        h5store(store, measure)
+        time.sleep(args.sleep_time)
     except serial.SerialException as e:
         print(e)
         tmd_data = False
