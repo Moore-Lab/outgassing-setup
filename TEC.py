@@ -170,7 +170,7 @@ temps = get_temp(TEC, args.sleep_time)
 print('temperature: {}'.format(temps))
 
 #store = pd.HDFStore(args.file_path)
-#temp = pd.DataFrame({'Temperature 1': temps[0], 'Temperature 2': temps[1]})
-#h5store(store, temp, 'test')
+#temperatures = pd.DataFrame({'Set temperature': args.temp, 'Current temperature': temps})
+#h5store(store, temperatures, 'test')
 
 #store.close()
