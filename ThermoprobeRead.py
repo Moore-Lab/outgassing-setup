@@ -8,7 +8,7 @@ import pandas as pd
 #one possible version of getting temperature
 def get_temp(ser, retry=2):
     ##most of this I commandeered from https://github.com/artisan-roaster-scope/artisan/blob/71e271c9ec21376d14680ef390bdd59fcc2ca026/src/artisanlib/comm.py#L1938
-    #this is the command that the Amprobe reads to then give the temperatures (I think)
+    #this is the command that the Amprobe reads to then give the temperatures
     command = bytes( '#0A0000NA2\r\n', 'ascii')
     r = ''
     if not ser.isOpen():
@@ -35,7 +35,7 @@ def get_temp(ser, retry=2):
                     if ser.isOpen():
                         ser.close()
                         time.sleep(.2)
-                    time.sleep(.05)
+                    time.sleep(args.sleep_time)
                 temp1, temp2 = get_temp(retry=retry-1)
                 return temp1, temp2
             else:
