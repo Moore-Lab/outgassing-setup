@@ -14,14 +14,14 @@ import pandas as pd
 # Define a function that gets the current pressure and then writes it to a text file along with a timestamp
 # This function writes data indefinitely at regular time intervals until the program is exited
 
-def pressure(port, sleeptime, file):
+def pressure(port):#, sleeptime, file):
     # Query the gauge for the current pressure
     port.write(str.encode("?GA1\r"))
     # Save the response along with a timestamp to a text file
-    f = open(file, 'a+')
-    nower = datetime.datetime.now()
-    timestamp = nower.strftime("%m-%d %H:%M:%S")
-    writer = csv.writer(f, lineterminator='\n')
+    # f = open(file, 'a+')
+    # nower = datetime.datetime.now()
+    # timestamp = nower.strftime("%m-%d %H:%M:%S")
+    #writer = csv.writer(f, lineterminator='\n')
     current_pressure = port.readlines()
     """
     The gauge returns a value in the form [b' PRESSURE \r'] as the first element of a list,
@@ -32,12 +32,13 @@ def pressure(port, sleeptime, file):
     current_pressure = list(current_pressure)
     current_pressure = current_pressure[2:len(current_pressure)-3]
     current_pressure = "".join(current_pressure)
-    print(current_pressure)
+    return current_pressure
+    #print(current_pressure)
     # Put the time elapsed since start (in sec), timestamp, and current pressure on a row in a csv file
-    row = [timestamp, current_pressure]
-    writer.writerow(row)
-    f.close()
-    time.sleep(sleeptime)
+    # row = [timestamp, current_pressure]
+    # writer.writerow(row)
+    # f.close()
+    # time.sleep(sleeptime)
 
 def h5store(store, df):#, i, **kwargs):
     ## copied from https://stackoverflow.com/questions/29129095/save-additional-attributes-in-pandas-dataframe
@@ -82,7 +83,7 @@ while ed_data:
         measure = pd.DataFrame({'Total Pressure': [pressures]})
         ed_table.append(measure)
         h5store(store, measure)
-        time.sleep(.33)
+        time.sleep(args.sleep_time)
     except serial.SerialException as e:
         print(e)
         ed_data = False
