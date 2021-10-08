@@ -42,7 +42,8 @@ def pressure(port):#, sleeptime, file):
 
 def h5store(store, df):#, i, **kwargs):
     ## copied from https://stackoverflow.com/questions/29129095/save-additional-attributes-in-pandas-dataframe
-    store.put('ed_pressure', df)
+    store.append(key='ed/ed', value=df, format='table')
+    store.append(key='ed/timestamp', value=pd.Series(datetime.datetime.now().strftime("%Y%m%d%H%M%S")), format='table')
     #store.get_storer('rga').attrs.metadata = kwargs
 
 
@@ -73,18 +74,20 @@ ED = serial.Serial(args.channel_name , baudrate=9600, bytesize=serial.EIGHTBITS,
 
 #measuring and recording the pressure
 ed_table = []
-store = pd.HDFStore(args.file_path)
 
 ed_data = True
 while ed_data:
     try:
+        store = pd.HDFStore(args.file_path)
         pressures = pressure(ED)
         print(pressures)
         measure = pd.DataFrame({'Total Pressure': [pressures]})
         ed_table.append(measure)
         h5store(store, measure)
         time.sleep(args.sleep_time)
+        store.close()
     except serial.SerialException as e:
+        store.close()
         print(e)
         ed_data = False
 

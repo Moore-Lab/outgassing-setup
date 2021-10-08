@@ -128,8 +128,9 @@ def set_output(temp, tec_ser, sleep_time):#, output=None):
     #     send_signal(tec_ser, power_message, sleep_time)
 
 def h5store(store, df):#, i, **kwargs):
-    ## copied from https://stackoverflow.com/questions/29129095/save-additional-attributes-in-pandas-dataframe
-    store.put('tec_temp', df)
+
+    store.append(key='tec/tec', value=df, format='table')
+    store.append(key='tec/timestamp', value=pd.Series(datetime.datetime.now().strftime("%Y%m%d%H%M%S")), format='table')
     #store.get_storer('rga').attrs.metadata = kwargs
 
 
@@ -162,13 +163,13 @@ TEC = serial.Serial(args.channel_name, baudrate=230400, parity=serial.PARITY_NON
 
 #start heating
 tec_table = []
-store = pd.HDFStore(args.file_path)
 set_output(args.temp, TEC, args.sleep_time)#, args.output_power)
 set_temp(args.temp, TEC, args.sleep_time)
 
 tec_data = True
 while tec_data:
     try:
+        store = pd.HDFStore(args.file_path)
         #read the current temperature as the tec heats up
         temps = get_temp(TEC, args.sleep_time)
         print(temps)
@@ -176,7 +177,9 @@ while tec_data:
         tec_table.append(measure)
         h5store(store, measure)
         time.sleep(.33)
+        store.close()
     except serial.SerialException as e:
+        store.close()
         print(e)
         tmd_data = False
 

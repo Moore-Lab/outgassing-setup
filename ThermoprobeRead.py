@@ -13,18 +13,25 @@ def get_temp(ser, retry=2):
     r = ''
     if not ser.isOpen():
         ser.open()
-        time.sleep(.2)
+        time.sleep(.5)
     if ser.isOpen():
         ser.reset_input_buffer()
         ser.reset_output_buffer()
+        time.sleep(.5)
         ser.write(command)
-        r = ser.read(16)
+        time.sleep(.5)
+        r = ser.readline()
+        #r = ser.read(16)
+        ser.close()
+        time.sleep(.5)
         if (len(r) == 16) and (int(r[0]) == 62) and (int(r[1]) == 15):
+            # print(r)
             #converting temperatures from hex
             temp1 = int(r[5]*256 + r[6])/10
             temp2 = int(r[10]*256 + r[11])/10
             return [temp1, temp2]
         else:
+            print('missing bits: ' + str(r))
             for i in range(4):
                 if (len(r) > 12+i) and (int(r[1+i])==62) and (int(r[2+i])==15):
                         temp1 = int(r[5+i]*256 + r[6+i])/10
@@ -36,7 +43,7 @@ def get_temp(ser, retry=2):
                         ser.close()
                         time.sleep(.2)
                     time.sleep(args.sleep_time)
-                temp1, temp2 = get_temp(retry=retry-1)
+                temp1, temp2 = get_temp(ser, retry=retry-1)
                 return temp1, temp2
             else:
                 nbytes = len(r)
@@ -46,8 +53,8 @@ def get_temp(ser, retry=2):
         return [-1, -1]
 
 def h5store(store, df):#, i, **kwargs):
-    ## copied from https://stackoverflow.com/questions/29129095/save-additional-attributes-in-pandas-dataframe
-    store.put('tmd_temp', df)
+    store.append(key='tmd/tmd', value=df, format='table')
+    store.append(key='tmd/timestamp', value=pd.Series(datetime.datetime.now().strftime("%Y%m%d%H%M%S")), format='table')
     #store.get_storer('rga').attrs.metadata = kwargs
 
 
@@ -101,12 +108,11 @@ TMD = serial.Serial(args.channel_name, baudrate=19200, bytesize=serial.EIGHTBITS
 
 #starting measurements
 tmd_table = []
-store = pd.HDFStore(args.file_path)
-
 
 tmd_data = True
 while tmd_data:
     try:
+        store = pd.HDFStore(args.file_path)
         #read the temperatures from the thermocouples
         temperatures = get_temp(TMD)
         print(temperatures)
@@ -114,6 +120,8 @@ while tmd_data:
         tmd_table.append(measure)
         h5store(store, measure)
         time.sleep(args.sleep_time)
+        store.close()
     except serial.SerialException as e:
+        store.close()
         print(e)
         tmd_data = False

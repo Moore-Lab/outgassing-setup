@@ -4,8 +4,8 @@ import pyrga
 import argparse
 import datetime
 import pandas as pd
-import datetime
 import serial
+import numpy as np
 
 def Initialize_RGA(rga, ee, ie, fp, eec):
     rga.set_electron_energy(ee)
@@ -18,8 +18,9 @@ def Initialize_RGA(rga, ee, ie, fp, eec):
     print('Emission Current (filament) set to {} mA'.format(rga.get_emission_current()))
 
 def h5store(store, df, i, **kwargs):
-    ## copied from https://stackoverflow.com/questions/29129095/save-additional-attributes-in-pandas-dataframe
-    store.put('rga/rga_scan{}'.format(i), df)
+    store.append(key='rga/rga', value=df, format='table')
+    store.append(key='rga/timestamp', value=pd.Series(datetime.datetime.now().strftime("%Y%m%d%H%M%S")), format='table')
+    
     #store.get_storer('rga').attrs.metadata = kwargs
 
 
@@ -85,11 +86,11 @@ except pyrga.driver.RGAException as e:
     RGA = pyrga.RGAClient(args.channel_name, noise_floor=args.noise_floor)
 
 #initialize RGA parameters
-Initialize_RGA(RGA, args.electron_energy, args.ion_energy, args.focus_plate, args.ee_current)
+# Initialize_RGA(RGA, args.electron_energy, args.ion_energy, args.focus_plate, args.ee_current)
 
-# check filament status and turn it on if necessary
-if not RGA.get_filament_status():
-    RGA.turn_on_filament()
+# # check filament status and turn it on if necessary
+# if not RGA.get_filament_status():
+#     RGA.turn_on_filament()
 
 # print(masses)
 # print(pressures)
@@ -105,24 +106,28 @@ metadata = {'Date': datetime.date.today(), 'Version': '3.218.004', 'Noise Floor'
 #starting scan
 rga_table = []
 scan_num = 0
-store = pd.HDFStore(args.file_path)
+
 
 rga_data = True
 while rga_data:
     try:
+        store = pd.HDFStore(args.file_path)
         # read analog scan of mass range from (default) 1-100 amu with max resolution of 10 steps per amu
         masses, pressures, total = RGA.read_spectrum(args.initial_mass, args.final_mass, args.steps)
-        #print(pressures)
-        #print(masses)
+        # print(pressures)
+        print(masses)
         #creating a pandas dataframe and writing data to an hdf5 file
-        scan = pd.DataFrame({'Mass': masses, 'Pressure': pressures})
-        rga_table.append(scan)
-        h5store(store, scan, scan_num)#, **metadata)
+        # scan = pd.DataFrame({'Mass': masses, 'Pressure': pressures})
+        # scan = pd.DataFrame({'Pressure': pressures})
+        # rga_table.append(scan)
+        h5store(store, pd.DataFrame(np.array(pressures)).transpose(), scan_num)#, **metadata)
         scan_num += 1
         print('number of scans: {}'.format(scan_num))
+        store.close()
     except serial.SerialException as e:
+        store.close()
         print(e)
         rga_data = False
 
-store.close()
+
 RGA.turn_off_filament()
