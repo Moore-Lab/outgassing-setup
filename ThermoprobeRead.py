@@ -20,6 +20,7 @@ def get_temp(ser, retry=2):
         time.sleep(.5)
         ser.write(command)
         time.sleep(.5)
+        print('read')
         r = ser.readline()
         #r = ser.read(16)
         ser.close()
@@ -48,7 +49,7 @@ def get_temp(ser, retry=2):
             else:
                 nbytes = len(r)
                 print('Error: {0} bytes received'.format(nbytes))
-                return [-1, -1]
+                # return [-1, -1]
     else:
         return [-1, -1]
 

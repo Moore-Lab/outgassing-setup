@@ -160,20 +160,27 @@ args = parser.parse_args()
 
 # Define the TEC temperature controller's serial settings 
 TEC = serial.Serial(args.channel_name, baudrate=230400, parity=serial.PARITY_NONE, stopbits=serial.STOPBITS_ONE, timeout=1)
-
+print('Opening connection to TEC')
+TEC.close()
+TEC.open()
+print(TEC.is_open)
 #start heating
 tec_table = []
 set_output(args.temp, TEC, args.sleep_time)#, args.output_power)
+print('Sending output signal')
 set_temp(args.temp, TEC, args.sleep_time)
+print('Sending temperature signal')
+# TEC.close()
+print(TEC.is_open)
 
 tec_data = True
 while tec_data:
     try:
         store = pd.HDFStore(args.file_path)
         #read the current temperature as the tec heats up
-        temps = get_temp(TEC, args.sleep_time)
+        temps = get_temp(TEC, args.sleep_time)        
         print(temps)
-        measure = pd.DataFrame({'Set Temp': [args.temp], 'Current Temp': [temps]})
+        measure = pd.DataFrame({'Set Temp': [args.temp]})#, 'Current Temp': [temps]})
         tec_table.append(measure)
         h5store(store, measure)
         time.sleep(.33)
@@ -184,8 +191,8 @@ while tec_data:
         tmd_data = False
 
 
-#store = pd.HDFStore(args.file_path)
-#temperatures = pd.DataFrame({'Set temperature': args.temp, 'Current temperature': temps})
-#h5store(store, temperatures, 'test')
+# store = pd.HDFStore(args.file_path)
+# temperatures = pd.DataFrame({'Set temperature': args.temp, 'Current temperature': temps})
+# h5store(store, temperatures, 'test')
 
-#store.close()
+# store.close()

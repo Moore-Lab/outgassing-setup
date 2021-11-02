@@ -34,7 +34,7 @@ print('hello')
 parser.add_argument('--channel_name',
                     help='Name of the channel to which the RGA is connected',
                     type=str,
-                    default='COM6') 
+                    default='COM4') 
 parser.add_argument('--file_path',
                     help="path to file that stores RGA scans",
                     type=str,
@@ -86,11 +86,11 @@ except pyrga.driver.RGAException as e:
     RGA = pyrga.RGAClient(args.channel_name, noise_floor=args.noise_floor)
 
 #initialize RGA parameters
-# Initialize_RGA(RGA, args.electron_energy, args.ion_energy, args.focus_plate, args.ee_current)
+Initialize_RGA(RGA, args.electron_energy, args.ion_energy, args.focus_plate, args.ee_current)
 
-# # check filament status and turn it on if necessary
-# if not RGA.get_filament_status():
-#     RGA.turn_on_filament()
+# check filament status and turn it on if necessary
+if not RGA.get_filament_status():
+    RGA.turn_on_filament()
 
 # print(masses)
 # print(pressures)
@@ -111,11 +111,12 @@ scan_num = 0
 rga_data = True
 while rga_data:
     try:
+        RGA.turn_on_filament()
         store = pd.HDFStore(args.file_path)
         # read analog scan of mass range from (default) 1-100 amu with max resolution of 10 steps per amu
         masses, pressures, total = RGA.read_spectrum(args.initial_mass, args.final_mass, args.steps)
         # print(pressures)
-        print(masses)
+        # print(masses)
         #creating a pandas dataframe and writing data to an hdf5 file
         # scan = pd.DataFrame({'Mass': masses, 'Pressure': pressures})
         # scan = pd.DataFrame({'Pressure': pressures})

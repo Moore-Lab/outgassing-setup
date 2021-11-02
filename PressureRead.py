@@ -56,7 +56,7 @@ parser = argparse.ArgumentParser(description="Read out the pressure of the syste
 parser.add_argument('--channel_name',
                     help='Name of the channel to which the pressure gauge is connected',
                     type=str,
-                    default='COM12') 
+                    default='COM7') 
 parser.add_argument('--file_path',
                     help="File that stores the pressure measurements",
                     type=str,
