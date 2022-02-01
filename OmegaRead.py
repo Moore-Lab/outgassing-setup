@@ -3,6 +3,7 @@ import serial
 import logging
 # from pymodbus.pdu import ModBusRequest
 from pymodbus.client.sync import ModbusSerialClient as ModbusClient
+from pymodbus.client.sync import ModbusRtuFramer
 
 ## Much copied from https://pymodbus.readthedocs.io/en/latest/source/example/synchronous_client.html
 
@@ -12,33 +13,19 @@ logging.basicConfig(format=FORMAT)
 log = logging.getLogger()
 log.setLevel(logging.DEBUG)
 
-UNIT= 0x1
+UNIT= 1
 
 def run_sync_client():
-    client = ModbusClient(method='ascii', port='COM8', stopbits=serial.STOPBITS_TWO, parity=serial.PARITY_NONE, baudrate=57600)
-
+    # print('hello')
+    client = ModbusClient(method='rtu', port='COM8', stopbits=2, parity='N', baudrate=57600, bytesize=8)
     client.connect()
-    client.write_coil(1, True)
-    result = client.read_coils(1,1)
-    print(result)
+    print(client.is_socket_open())
+    print("socket:")
+    print(client.is_socket_open())
+
+    temp = client.read_input_registers(0x1000,12,unit=UNIT)
+    print(temp.registers)
     client.close()
-
-    # log.debug("Write to multiple coils and read back- test 1")
-    # rq = client.write_coils(1, [True]*8, unit=UNIT)
-    # rr = client.read_coils(1, 21, unit=UNIT)
-    # assert(not rq.isError())     # test that we are not an error
-    # assert(not rr.isError())     # test that we are not an error
-    # resp = [True]*21
-
-    # log.debug("Reading Coils")
-    # rr = client.read_coils(1, 1, unit=UNIT)
-    # log.debug(rr)
-    
-    # temp = client.read_holding_registers(0x1000,1)
-
-    temp = client.read_input_registers(0x1000,4,unit=UNIT)
-    print(temp)
-    print(client)
 
 
 run_sync_client()
