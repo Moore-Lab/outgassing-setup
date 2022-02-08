@@ -59,33 +59,6 @@ def h5store(store, df):#, i, **kwargs):
     #store.get_storer('rga').attrs.metadata = kwargs
 
 
-# #another possible way to get the temperature
-# #might end up combining the two into one
-# def get_temp_other(ser, file, retry=10, response_length = 16):
-#     ## from https://www.home-barista.com/roasting/thermocouple-issues-in-artisan-t41350.html
-#     command = bytes( '#0A0000NA2\r\n', 'ascii')
-#     try:
-#         for i in range(retry):
-#             ser.write(command)
-#             data = ser.read(response_length)
-
-#             if (ord(data[0]) == 0x3e) and (ord(data[1]) == 0x0f):
-#                 temp1 = ((ord(data[5]) << 8) | ord(data[6]))/10.0
-#                 # << shift left by 5 bits
-#                 temp2 = ((ord(data[10]) << 8) | ord(data[11]))/10.0
-#                 if (i > 1):
-#                     print('Good data ({}, {}) found after {} retries'.format(temp1, temp2, i))
-#                     return [temp1, temp2]
-#                 else:
-#                     print('Bad data found: ')
-#                     for j in range(16):
-#                         print('{} {}'.format(ord(data[j]),'02x'))
-#                     return [-1, -1]
-#     except serial.SerialException as e:
-#         print(e)
-#         return [-1, -1]
-
-
 parser = argparse.ArgumentParser(description="Read out the pressure of the system at given time intervals")
 
 parser.add_argument('--channel_name',

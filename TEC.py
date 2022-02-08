@@ -6,33 +6,41 @@ import pandas as pd
 
 ## consulted https://github.com/linnarsson-lab/Py_TC-720/blob/master/Py_TC720.py for much of this
 
-#Define a function that generates a hexcode message for set functions
 def make_hexcode(val, message):
+    '''Generates a hexcode message for set functions to talk with the TEC
+    Requires the value being sent to the TEC and message format: ['*','x','x','0','0','0','0','0','0','\r']
+    '''
+
     #dealing with negative numbers
     if val < 0:
         val = int(0.5 * 2**16 - val)
-    #converting number into a hex form that will be put into message
-    val_str = '{h:0>4}'.format(h=hex(val)[2:])
-    #the next 4 elements represent the value that is given to the TEC
-    message[3:7] = val_str[0], val_str[1], val_str[2], val_str[3]
+    val_str = '{h:0>4}'.format(h=hex(val)[2:]) # converting number into a hex form that will be put into message
+    message[3:7] = val_str[0], val_str[1], val_str[2], val_str[3] # the 4 elements after the third element represent the value that is given to the TEC
     return message
 
-#Define a function that generates the check sum, which are 2 ASCII hex characters that compose the last 2 elements of message before '\r'
 def make_checksum(message):
+    '''Generates the check sum, which are 2 ASCII hex characters that compose the last 2 elements of message before '\r'
+    '''
+
     byt_message = ''.join(message)
     checksum = hex(sum(byt_message[1:7].encode('ascii'))%256)[-2:]
     message[7:9] = checksum[0], checksum[1]
 
-#Define a function that sends a signal to the TEC
 def send_signal(ser, message, sleep_time):
-    # Actually send the signal
+    ''' Sends a signal to the TEC
+    Requires serial obect, full message, and time between sending message elements (default 0.5s)
+    '''
+
     for i in message:
         ser.write(str.encode(i))
         time.sleep(sleep_time)
         ser.read_all()
-
-#Define a function that sends a read signal to the TEC        
+      
 def read_signal(ser, message, sleep_time):
+    '''Sends a signal to the TEC to read a value from it
+    Requires serial obect, full message, and time between sending message elements (default 0.5s)
+    '''
+
     for i in message:
         ser.write(str.encode(i))
         time.sleep(sleep_time)
@@ -44,64 +52,57 @@ def read_signal(ser, message, sleep_time):
         val = ser.read_all()
     return val
 
-# Define a function that takes a temperature and sends it to the TEC
 def set_temp(temp, tec_ser, sleep_time):
-    #this is the message that will be passed to the TEC to set the temperature. The second and third elements are the command that tells the TEC
-    #that the temperature is being set (1c)
-    temp_message = ['*','1','c','0','0','0','0','0','0','\r']
-    #for some reason we need to multiply the temperature by 100 before we convert to hex
-    temp = int(temp*100)
-    make_hexcode(temp, temp_message)
-    make_checksum(temp_message)
+    ''' Takes a temperature and sends it to the TEC
+    Starts with a message that will be passed to the TEC to set the temperature.
+    Requires set temperature, serial object, and time between sending message elements (default 0.5s)
+    '''
 
-    # message = ['*','1','c','f','f','6','a','f','7','\r']    ### test message
-
-    send_signal(tec_ser, temp_message, sleep_time)
+    temp_message = ['*','1','c','0','0','0','0','0','0','\r'] # The second and third elements are the command that tells the TEC that the temperature is being set (1c)
+    temp = int(temp*100) # need to multiply the temperature by 100 before we convert to hex
+    make_hexcode(temp, temp_message) # conerting the temperature into a hexcode
+    make_checksum(temp_message) # making the checksum that goes at the end of the message
+    send_signal(tec_ser, temp_message, sleep_time) # sending a signal to set the temperature of the TEC
 
 def get_temp(tec_ser, sleep_time):
-    #these are the messages that will be passed to the TEC to get the temperatures
-    #the second and third elements are the command that tells the TEC that we want to read the temperatures
-    message1 = ['*','0','1','0','0','0','0','0','0','\r']
-    #there is no value to set, unlike set_temp so the next 4 elements stay 0
-
-    make_checksum(message1)
-    temp1 = read_signal(tec_ser, message1, sleep_time)
+    '''Reading the current temperature that the TEC is set to
+    Starts with a message that will be passed to the TEC to get the temperatures
+    Requires serial object and time between sending message elements (default 0.5s)
+    '''
     
-    #converting the temperature readout to a number
-    temp1 = int(temp1[1:5], base=16)
+    message1 = ['*','0','1','0','0','0','0','0','0','\r'] # the second and third elements are the command that tells the TEC that we want to read the temperatures
+                                                          # there is no value to set, unlike set_temp so the next 4 elements stay 0
+    make_checksum(message1) # making the checksum that goes at the end of the message
+    temp1 = read_signal(tec_ser, message1, sleep_time)
+    temp1 = int(temp1[1:5], base=16) # converting the temperature readout to a number
 
     if temp1 > .5 * (2**16):
         temp1 = -(2**16 - temp1)
     
     return temp1/100
 
-#Define a function that checks if the output is enabled, and if not, turns it on
-#if output is defined, then it will set the output percentage, otherwise it wil be at 100%
-def set_output(temp, tec_ser, sleep_time):#, output=None):
-    #these messages are what the TEC reads to determine information about the output
-    #check to see whether or not the power output is on
-    #the first two elements after '*' tell the machine that the we want to check if
-    #the power output is enabled
-    check_message = ['*','6','4','0','0','0','0','0','0','\r']
-    
-    #there is no value to set, because we are just reading the value so the next 4 elements stay 0
-    make_checksum(check_message)
-    output_message = read_signal(tec_ser, check_message, sleep_time)
+def set_output(tec_ser, sleep_time):#, output=None):
+    '''Checks if the output is enabled, and if not, turns it on
+    If output is defined, then it will set the output percentage, otherwise it will keep the standard power output
+    Starts with a message that the TEC reads to determine information about the output
+    and ensures the power output is on
+    Requires serial object and time between sending message elements (default 0.5s)
+    '''
 
-    #converting the output readout to a number
-    output_message = int(output_message[1:5], base=16)
-    # print('output: {}'.format(output_message))
+    check_message = ['*','6','4','0','0','0','0','0','0','\r'] # the first two elements after '*' tell the machine that the we want to check if the power output is enabled
+    # there is no value to set, because we are just reading the value so the next 4 elements stay 0
+    make_checksum(check_message) # making the checksum that goes at the end of the message
+    output_message = read_signal(tec_ser, check_message, sleep_time) # reads the status of the output
+
+    output_message = int(output_message[1:5], base=16) # converting the output readout to a number
 
     #if the output is off, turn it on
     if output_message == 0:
-        #the first two entries after '*' are to either turn the output on or off
-        #the next entry: '1' tells the TEC to turn on the output
-        on_message = ['*','3','0','1','0','0','0','0','0','\r']
-
-        make_checksum(on_message)
-        send_signal(tec_ser, on_message, sleep_time)
+        on_message = ['*','3','0','1','0','0','0','0','0','\r'] # the first two entries after '*' are to either turn the output on or off, the next entry: '1' tells the TEC to turn on the output
+        make_checksum(on_message) # making the checksum that goes at the end of the message
+        send_signal(tec_ser, on_message, sleep_time) # sending the signal the the TEC telling it to turn on the power output
     
-    # #setting the output power
+    # #setting the output power (does not work yet, but saving the code in case we need to change the output power percentage)
     # #possible output values range from -511 (cooling) to 511 (heating) (-100% to 100%)
     # if output is not None:
     #     #if we want to speficy the output power, we have to set the control to manual
@@ -127,12 +128,13 @@ def set_output(temp, tec_ser, sleep_time):#, output=None):
     #     make_checksum(power_message)
     #     send_signal(tec_ser, power_message, sleep_time)
 
-def h5store(store, df):#, i, **kwargs):
+def h5store(store, df):
 
     store.append(key='tec/tec', value=df, format='table')
     store.append(key='tec/timestamp', value=pd.Series(datetime.datetime.now().strftime("%Y%m%d%H%M%S")), format='table')
-    #store.get_storer('rga').attrs.metadata = kwargs
 
+
+# Define arguments to be passed via command line
 
 parser = argparse.ArgumentParser(description="Set the temperature of the TEC")
 
@@ -158,30 +160,30 @@ parser.add_argument('--output_power',
 
 args = parser.parse_args()
 
-# Define the TEC temperature controller's serial settings 
-TEC = serial.Serial(args.channel_name, baudrate=230400, parity=serial.PARITY_NONE, stopbits=serial.STOPBITS_ONE, timeout=1)
+
+TEC = serial.Serial(args.channel_name, baudrate=230400, parity=serial.PARITY_NONE, stopbits=serial.STOPBITS_ONE, timeout=1) # TEC temperature controller's serial settings 
 print('Opening connection to TEC')
 TEC.close()
 TEC.open()
 print(TEC.is_open)
-#start heating
+
+# start heating
 tec_table = []
-set_output(args.temp, TEC, args.sleep_time)#, args.output_power)
+
+set_output(TEC, args.sleep_time)#, args.output_power)
 print('Sending output signal')
-set_temp(args.temp, TEC, args.sleep_time)
+set_temp(args.temp, TEC, args.sleep_time) # set the temperature to value inputted in the command line
 print('Sending temperature signal')
-# TEC.close()
 print(TEC.is_open)
 
 tec_data = True
 while tec_data:
     try:
-        store = pd.HDFStore(args.file_path)
-        #read the current temperature as the tec heats up
-        temps = get_temp(TEC, args.sleep_time)        
+        store = pd.HDFStore(args.file_path) # creating an h5 file to store the data
+        temps = get_temp(TEC, args.sleep_time)  # read the current temperature as the tec heats up
         print(temps)
-        measure = pd.DataFrame({'Set Temp': [args.temp]})#, 'Current Temp': [temps]})
-        tec_table.append(measure)
+        measure = pd.DataFrame({'Set Temp': [args.temp]}) # storing the temperatures in a pandas dataframe
+        tec_table.append(measure) # adding a line of new measurements to previous table of data
         h5store(store, measure)
         time.sleep(.33)
         store.close()
@@ -189,10 +191,3 @@ while tec_data:
         store.close()
         print(e)
         tmd_data = False
-
-
-# store = pd.HDFStore(args.file_path)
-# temperatures = pd.DataFrame({'Set temperature': args.temp, 'Current temperature': temps})
-# h5store(store, temperatures, 'test')
-
-# store.close()

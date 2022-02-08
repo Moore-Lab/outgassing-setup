@@ -1,5 +1,4 @@
 import logging
-#import matplotlib.pyplot as plt
 import pyrga
 import argparse
 import datetime
@@ -8,6 +7,9 @@ import serial
 import numpy as np
 
 def Initialize_RGA(rga, ee, ie, fp, eec):
+    ''' Getting a connection to the RGA and setting parameters
+    Requires electron energy (default 70 eV), ion energy (default 1), plate voltage (default 90 V), and filament current (default 1.0 mA)
+    '''
     rga.set_electron_energy(ee)
     print('Electron energy set to {} eV'.format(rga.get_electron_energy()))
     rga.set_ion_energy(ie)
@@ -28,7 +30,9 @@ def h5store(store, df, i, **kwargs):
 # turn off logging
 logging.getLogger('pyrga').setLevel(logging.CRITICAL)
 
-# if __name__ == "__main__":
+
+# Define arguments to be passed via command line
+
 parser = argparse.ArgumentParser(description="Read out the pressure of the RGA at given time intervals")
 print('hello')
 parser.add_argument('--channel_name',
@@ -82,28 +86,26 @@ args = parser.parse_args()
 try:
     RGA = pyrga.RGAClient(args.channel_name, noise_floor=args.noise_floor)
 except pyrga.driver.RGAException as e:
-    #trying again to receive the buffer line if it is a timeout problem
-    RGA = pyrga.RGAClient(args.channel_name, noise_floor=args.noise_floor)
+    RGA = pyrga.RGAClient(args.channel_name, noise_floor=args.noise_floor) # trying again to receive the buffer line if it is a timeout problem
 
-#initialize RGA parameters
-Initialize_RGA(RGA, args.electron_energy, args.ion_energy, args.focus_plate, args.ee_current)
+Initialize_RGA(RGA, args.electron_energy, args.ion_energy, args.focus_plate, args.ee_current) # initialize RGA parameters
 
 # check filament status and turn it on if necessary
 if not RGA.get_filament_status():
     RGA.turn_on_filament()
 
-# print(masses)
-# print(pressures)
-# print(total)
 
-cdemv = RGA.get_cdem_voltage()
-sp = RGA.get_partial_sens()
-metadata = {'Date': datetime.date.today(), 'Version': '3.218.004', 'Noise Floor': args.noise_floor, 'CEM': 'Off', 
-            'Steps': args.steps, 'Initial Mass': args.initial_mass, 'Final Mass': args.final_mass, 
-            'Focus Plate Voltage': args.focus_plate, 'Ion Energy': args.ion_energy, 'Electron Energy': args.electron_energy,
-            'CDEM Voltage': cdemv, 'Partial Sensitivity': sp, 'Electron Emission Current': args.ee_current}
+# possible metadata stuff if we choose to inlcude that in our dataframes in future
+# cdemv = RGA.get_cdem_voltage()
+# sp = RGA.get_partial_sens()
+# metadata = {'Date': datetime.date.today(), 'Version': '3.218.004', 'Noise Floor': args.noise_floor, 'CEM': 'Off', 
+#             'Steps': args.steps, 'Initial Mass': args.initial_mass, 'Final Mass': args.final_mass, 
+#             'Focus Plate Voltage': args.focus_plate, 'Ion Energy': args.ion_energy, 'Electron Energy': args.electron_energy,
+#             'CDEM Voltage': cdemv, 'Partial Sensitivity': sp, 'Electron Emission Current': args.ee_current}
 
-#starting scan
+
+# starting scan
+
 rga_table = []
 scan_num = 0
 
@@ -113,14 +115,7 @@ while rga_data:
     try:
         RGA.turn_on_filament()
         store = pd.HDFStore(args.file_path)
-        # read analog scan of mass range from (default) 1-100 amu with max resolution of 10 steps per amu
-        masses, pressures, total = RGA.read_spectrum(args.initial_mass, args.final_mass, args.steps)
-        # print(pressures)
-        # print(masses)
-        #creating a pandas dataframe and writing data to an hdf5 file
-        # scan = pd.DataFrame({'Mass': masses, 'Pressure': pressures})
-        # scan = pd.DataFrame({'Pressure': pressures})
-        # rga_table.append(scan)
+        masses, pressures, total = RGA.read_spectrum(args.initial_mass, args.final_mass, args.steps) # read analog scan of mass range from (default) 1-100 amu with max resolution of 10 steps per amu
         h5store(store, pd.DataFrame(np.array(pressures)).transpose(), scan_num)#, **metadata)
         scan_num += 1
         print('number of scans: {}'.format(scan_num))
