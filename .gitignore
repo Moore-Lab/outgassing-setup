@@ -1,3 +1,4 @@
 *.h5
 *.csv
 *.txt
+*.pyc
