@@ -21,10 +21,18 @@ def read_pressure(ed):
     # The gauge returns a value in the form [b' PRESSURE \r'] as the first element of a list,
     # so we need to convert this first element into a string and then make the string mutable by turning into a list
     # and then chopping off the irrelevant parts of the returned pressure and then stitching them together to be printed
-    current_pressure = str(current_pressure[0])
-    current_pressure = list(current_pressure)
-    current_pressure = current_pressure[2:len(current_pressure)-3]
-    current_pressure = "".join(current_pressure)
+    if len(current_pressure) > 0:
+        current_pressure = str(current_pressure[0])
+        current_pressure = float(current_pressure[2:-3])
+    
+    else: # if the pressure reading returns empty, wait 0.5s and try to read the pressure again (attempting to solve the 'list index out of range' error)
+        time.sleep(.5)
+        ED.write(str.encode("?GA1\r")) # Query the gauge for the current pressure
+        current_pressure = ED.readlines()
+
+        current_pressure = str(current_pressure[0])
+        current_pressure = float(current_pressure[2:-3])
+
 
     ED.close()
     return current_pressure

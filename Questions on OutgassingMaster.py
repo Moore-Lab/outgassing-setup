@@ -1,16 +1,19 @@
+import argparse
+import datetime
+import logging
+import msvcrt
+import time
+
+import keyboard
 import numpy as np
 import pandas as pd
 import serial
-import argparse
-import keyboard
-import msvcrt
-import logging
-import datetime
-import time
-import TEC
-import TempRead
+
 import PressureRead
 import RGAScan
+import TEC
+import TempRead
+
 # from threading import Thread
 
 def h5store(store, rga_df, om_df, ed_df, tec_df):#, i, **kwargs):
@@ -135,7 +138,7 @@ if __name__ == '__main__':
     print('starting measurements')
     start_heater = False
     temp_list = arg.temps
-    temp_index = 0
+    temp_index = 0 
     start_time = datetime.datetime.now()
 
     while True:
@@ -146,30 +149,36 @@ if __name__ == '__main__':
         om_ts = pd.DataFrame({'Temp 1': [temperatures[0]], 'Temp 2': [temperatures[1]]})
         tec_ts = pd.DataFrame({'Set Temp': [tec_temperatures]})
 
-        if ((arg.close_chamber == True) & (start_heater == False)): # waiting 12 h to start heater if the chamber has been opened
-            test_time = datetime.datetime.now()
-            if (test_time - start_time)/datetime.timedelta(hours=1) >= 12: 
-                TEC.run_tec(arg.tec_channel, temp_list[0], arg.sleep_time)
-                print('starting TEC after waiting period')
-                print('turning heater to {} C'.format(temp_list[0]))
-                start_heater = True
-                temp_index += 1
-                start_time = test_time
+        if ((arg.close_chamber == True) & (start_heater == False)): # waiting 12 h to start heater if the chamber has been opened ; ##if chamber was NOT closed and heater NOT started 
+            test_time = datetime.datetime.now() #We would use this test time to "test" whether the time difference b/n current time and start time is 12 hours (this is when it is checking the time; the code is doing this check continuously)
+            #QUESTION: both start_time and test_time are defined in the same way. Wouldn't that make their difference zero, or has time elapsed when we go from start_time line to test_time line?
+            if (test_time - start_time)/datetime.timedelta(hours=1) >= 12: #converting the time difference to hours and checking if that's greater than 12
+                TEC.run_tec(arg.tec_channel, temp_list[0], arg.sleep_time) #Argument 1: tec specification (signal settings); Argument 2: the temperature at which the tec will run; 
+                #Argument 3: the time between measurements)
+                print('starting TEC after waiting period') # waiting period will be 43200 seconds)
+                print('turning heater to {} C'.format(temp_list[0])) # after the waiting period, the TEC turns to the first item in the temp_list: 30 in the step-function temp rise 
+                start_heater = True #now that the heater starts, the code leaves the main if branch and goes to the else downstairs
+                #QUESTION: does that mean the two lines below are mis-placed as they will be ignored? Nope, it's just that the loop won't be re-run
+                temp_index += 1 #increase the temperature from the first item in temp_list to the second item: 40 in the step-function temp rise 
+                start_time = test_time #resetting start time to test time when raising TEC temp
             else:
-                tec_ts = pd.DataFrame({'Set Temp': [0.0]})
-        else:
+                tec_ts = pd.DataFrame({'Set Temp': [0.0]}) #if time difference is less than 12 hours, then the temp is just set to "0, 0"
+        else: #in the event that the chamber has been closed or the heater had been started; when the heating happens right away
             test_time = datetime.datetime.now()
-            if temp_index == 0:
-                TEC.run_tec(arg.tec_channel, temp_list[0], arg.sleep_time)
-                print('starting TEC')
-                print('turning heater to {} C'.format(temp_list[0]))
-                start_heater = True
-                temp_index +=1
+            if temp_index == 0: #in the event that the heater brought the temp to 30: we can run 
+                TEC.run_tec(arg.tec_channel, temp_list[0], arg.sleep_time) 
+                print('starting TEC') #QUESTION: I thought this conditional loop was already starting from the assumption that TEC has started (unless chamber 
+                #being closed was the reason the code ran)
+                print('turning heater to {} C'.format(temp_list[0])) 
+                start_heater = True #QUESTION (similar): I thought this conditional loop was already starting from the assumption that heater has started (unless chamber 
+                #being closed was the reason the code ran)
+                temp_index +=1 
                 start_time = test_time
-            elif (temp_index < len(temp_list)):
-                if (test_time - start_time)/datetime.timedelta(hours=1) >= arg.time_interval:
-                    TEC.run_tec(arg.tec_channel, temp_list[temp_index], arg.sleep_time)
-                    print('turning heater to {} C'.format(temp_list[temp_index]))
+            elif (temp_index < len(temp_list)): #in the event that the TEC was at a temperature greater than the lowest index in the list (but less than the maximum index)
+                if (test_time - start_time)/datetime.timedelta(hours=1) >= arg.time_interval: #has it been 12 hours since the test time, which is now the start time 
+                    TEC.run_tec(arg.tec_channel, temp_list[temp_index], arg.sleep_time) #Argument 2: not 30 (or whenever the list starts) but rather the first temp of the TEC
+                    print('turning heater to {} C'.format(temp_list[temp_index])) #converting the time difference to hours and checking if that's greater than THE AMOUNT OF TIME 
+                    #BEFORE CHANGING THE TEMPERATURE IN HOURS
                     temp_index += 1
                     start_time = test_time
 
@@ -181,7 +190,7 @@ if __name__ == '__main__':
         # stopping measurements after the last temperature change
         if (temp_index == len(temp_list)):
             end_time = datetime.datetime.now()
-            if (end_time - start_time)/datetime.timedelta(hours=1) >= arg.time_interval:
+            if (end_time - start_time)/datetime.timedelta(hours=1) >= arg.time_interval: 
                 print('End of data taking period. Stopping measurements')
                 store.close()
                 break

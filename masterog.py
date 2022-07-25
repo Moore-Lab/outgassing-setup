@@ -20,25 +20,26 @@ def h5store(store, rga_df, om_df, ed_df, tec_df):#, i, **kwargs):
     store.append(key='scan/ed_pres', value=ed_df, format='table')
     store.append(key='scan/tec_temp', value=tec_df, format='table')
     store.append(key='scan/timestamp', value=pd.Series(datetime.datetime.now().strftime("%Y%m%d%H%M%S")), format='table')
+    store.close()
     # copied from https://stackoverflow.com/questions/29129095/save-additional-attributes-in-pandas-dataframe
     # may be an option to add metadata
 
-def run_outgassing(rga, mass1, mass2, steps, edwards, omega, tec_channel, sleep):
+def run_outgassing(rga, mass1, mass2, steps, edwards, omega, tec_channel, sleep): #"Master" part of the script: runs all 4 other scripts
     '''Measuring rga, pressure, and sample temperature'''
     tec = serial.Serial(tec_channel, baudrate=230400, parity=serial.PARITY_NONE, stopbits=serial.STOPBITS_ONE, timeout=1) # TEC temperature controller's serial settings 
     masses, pps, totals = RGAScan.run_rga(rga, mass1, mass2, steps)
     pressures = PressureRead.read_pressure(edwards)
-    temps = TempRead.read_temp(omega)
-    tec_temps = TEC.get_temp(tec, sleep)
+    temps = TempRead.read_temp(omega) #thermoprobe temperature
+    tec_temps = TEC.get_temp(tec, sleep) #gets the temperature that the TEC is set to
     return masses, pps, totals, pressures, temps, tec_temps
 
 def set_temperature(temps, int_time, tec, sleep, open_chamber):
-    '''Takes a list of temperatures and sets the tec to each temperature after a given time interval'''
+    '''Takes a list of temperatures and sets the tec to each temperature after a given time interval''' # QUESTION: the list is from the Omega temp values (thermocouple recordings)?
     if open_chamber:
         time.sleep(43200) # if chamber was opened, wait 12h until heating to pump off initial outgassing
     print('heater turning on')
     for t in temps:
-        TEC.run_tec(tec, t, sleep)
+        TEC.run_tec(tec, t, sleep) # tec serial settings, the temperature taken from the thermoprobe, and the time between measurements
         print('Set heater to {} C'.format(t))
         time.sleep(int_time)
 
@@ -54,17 +55,21 @@ if __name__ == '__main__':
     # turn off logging
     logging.getLogger('pyrga').setLevel(logging.CRITICAL)
 
-
     # Define arguments to be passed via command line
 
     parser = argparse.ArgumentParser(description="Run outgasing measurements")
     print('hello')
-    parser.add_argument('--temps',
-                        nargs='+',
-                        help='List of temperatures to measure at',
+    parser.add_argument('--initial_temp', ## !!
+                        help='The initial temperature of the whole measurement',
                         type=float)
-    parser.add_argument('--time_interval',
-                        help='The amount of time before changing the temperature in hours',
+    parser.add_argument('--final_temp', ## !!
+                        help='The final temperature at which measurement',
+                        type=float)
+    parser.add_argument('--temp_increment', ## !!
+                        help='The amount of temperature increment',
+                        type=float)
+    parser.add_argument('--time_interval', 
+                        help='The amount of time before changing the temperature in hours', # !!
                         type=float)
     parser.add_argument('--close_chamber',
                         action='store_false',
@@ -134,8 +139,8 @@ if __name__ == '__main__':
     scan_num = 0
     print('starting measurements')
     start_heater = False
-    temp_list = arg.temps
-    temp_index = 0
+    # temp_list = arg.temps ## 
+    temp_value = float(arg.initial_temp) ## !!
     start_time = datetime.datetime.now()
 
     while True:
@@ -146,45 +151,47 @@ if __name__ == '__main__':
         om_ts = pd.DataFrame({'Temp 1': [temperatures[0]], 'Temp 2': [temperatures[1]]})
         tec_ts = pd.DataFrame({'Set Temp': [tec_temperatures]})
 
-        if ((arg.close_chamber == True) & (start_heater == False)): # waiting 12 h to start heater if the chamber has been opened
-            test_time = datetime.datetime.now()
+        # stopping measurements after the last temperature change
+        if (temp_value == arg.final_temp): ## !!
+            # print('stop')
+            end_time = datetime.datetime.now()
+            # print((end_time - start_time)/datetime.timedelta(hours=1)) 
+            # print(arg.time_interval)
+            if (end_time - start_time)/datetime.timedelta(hours=1) >= arg.time_interval: 
+                print('End of data taking period. Stopping measurements')
+                store.close()
+                break
+        
+        if ((arg.close_chamber == True) & (start_heater == False)): 
+            test_time = datetime.datetime.now() 
             if (test_time - start_time)/datetime.timedelta(hours=1) >= 12: 
-                TEC.run_tec(arg.tec_channel, temp_list[0], arg.sleep_time)
-                print('starting TEC after waiting period')
-                print('turning heater to {} C'.format(temp_list[0]))
-                start_heater = True
-                temp_index += 1
-                start_time = test_time
+                TEC.run_tec(arg.tec_channel, arg.initial_temp, arg.sleep_time) ## !!
+                print('starting TEC after waiting period') 
+                print('turning heater to {} C'.format(arg.initial_temp)) ## !!
+                start_heater = True 
+                temp_value = float(arg.initial_temp) + float(arg.temp_increment)  ## !!
+                start_time = test_time 
             else:
-                tec_ts = pd.DataFrame({'Set Temp': [0.0]})
-        else:
+                tec_ts = pd.DataFrame({'Set Temp': [0.0]}) 
+        else: 
             test_time = datetime.datetime.now()
-            if temp_index == 0:
-                TEC.run_tec(arg.tec_channel, temp_list[0], arg.sleep_time)
-                print('starting TEC')
-                print('turning heater to {} C'.format(temp_list[0]))
-                start_heater = True
-                temp_index +=1
+            if temp_value == arg.initial_temp: ## !!
+                TEC.run_tec(arg.tec_channel, arg.initial_temp, arg.sleep_time) ## !!
+                print('starting TEC') 
+                print('turning heater to {} C'.format(arg.initial_temp)) ## !!
+                start_heater = True 
+                temp_value = float(arg.initial_temp) + float(arg.temp_increment)  ## !!
                 start_time = test_time
-            elif (temp_index < len(temp_list)):
-                if (test_time - start_time)/datetime.timedelta(hours=1) >= arg.time_interval:
-                    TEC.run_tec(arg.tec_channel, temp_list[temp_index], arg.sleep_time)
-                    print('turning heater to {} C'.format(temp_list[temp_index]))
-                    temp_index += 1
+            else: ## !!
+                if (test_time - start_time)/datetime.timedelta(hours=1) >= arg.time_interval: 
+                    TEC.run_tec(arg.tec_channel, temp_value, arg.sleep_time) ## !!
+                    print('turning heater to {} C'.format(temp_value)) ## !!
+                    temp_value += float(arg.temp_increment)  ## !!
                     start_time = test_time
-
 
         h5store(store, rga_press, om_ts, ed_press, tec_ts)#, **metadata)
         scan_num += 1
         print('number of scans: {}'.format(scan_num))
-
-        # stopping measurements after the last temperature change
-        if (temp_index == len(temp_list)):
-            end_time = datetime.datetime.now()
-            if (end_time - start_time)/datetime.timedelta(hours=1) >= arg.time_interval:
-                print('End of data taking period. Stopping measurements')
-                store.close()
-                break
         
         # type 'q' in the terminal in order to stop the script and disconnect from instruments
         # only works on Windows
