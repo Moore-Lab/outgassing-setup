@@ -202,8 +202,6 @@ if __name__ == '__main__':
                 break
 
 
-
-
     RGA.turn_off_filament()
     print('turning off the RGA filament')
 
