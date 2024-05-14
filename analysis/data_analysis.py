@@ -44,4 +44,3 @@ class Dataset:
         plt.yscale('log')
         plt.plot(self.data[gas]['exp_time'], self.data[gas]['pressure'])
 
-##hello
