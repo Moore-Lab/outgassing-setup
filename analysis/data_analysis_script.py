@@ -4,8 +4,9 @@ import matplotlib.pyplot as plt
 from scipy.signal import find_peaks
 
 class Dataset:
-    def __init__(self, run_label, gases, data_path='/gpfs/gibbs/project/david_moore/aj487/Data_WL110/Outgassing_Setup/20231030/'):
-        self.data_path = data_path
+    def __init__(self, run_label, gases, data_path):
+        self.data_path = '/gpfs/gibbs/project/david_moore/aj487/Data_WL110/Outgassing_Setup/'
+        self.data_path = self.data_path+data_path
         self.run_label = run_label
         self.filename = self.data_path + '{}.h5'.format(self.run_label)
         self.gases = gases
