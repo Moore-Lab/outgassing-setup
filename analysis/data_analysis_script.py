@@ -34,6 +34,10 @@ class Dataset:
     def fitfunction(self,tT,a,b,c):
         factor = np.exp(-1.0*b/tT[1])
         return a * factor * np.exp(-1.0*c*tT[0]*factor)
+    
+    def fitfunction_offset(self,tT,a,b,c,d,e,f):
+        factor = np.exp(-1.0*b/(d*tT[1]+e)) #d*tT[1]+e = alpha*Temp+beta
+        return a * factor * np.exp(-1.0*c*(tT[0]+f)*factor) #tT[0]+f = time + gamma
 
     def logfitfunction(self,tT,a,b,c):
         return a - b/tT[1] - c*tT[0]*np.exp(-b/tT[1])
