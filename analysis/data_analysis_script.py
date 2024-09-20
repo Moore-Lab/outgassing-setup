@@ -31,13 +31,42 @@ class Dataset:
                 else:
                     self.range[gas].append([peak-120,self.peak_indices[gas][j+1]-300])
     
-    def fitfunction(self,tT,a,b,c):
-        factor = np.exp(-1.0*b/tT[1])
-        return a * factor * np.exp(-1.0*c*tT[0]*factor)
+    def fitfunction(self,tT,a,b,c, tau):
+        
+        dt = tT[0][1] - tT[0][0]  # Assuming t is evenly spaced
+        decay_t = np.arange(0, len(tT[0])) * dt  # Define time for the decay function
+        decay = np.exp(-decay_t/tau) * (decay_t >= 0)
+        Normdecay = decay/np.sum(decay) #Normalize decay function
+        padded_data = np.pad(tT[1], (len(decay)-1, 0), mode='edge')  # Pad data with values similar to edge to resolve boundary issues
+        smooth_step = np.convolve(padded_data, Normdecay, mode='valid') #Convolve two functions
+        
+        factor = np.exp(-1.0*b/(smooth_step))
+        pi = 3.141592653589793
+        function = 0
+        d = .01
+       
+        
+        for n in [0, 1, 2, 3, 4, 5]:
+            function += np.exp(-1.0*((((2*n+1)*(pi))/d)**2)*tT[0]*c*factor)
+            
+        return  ((4*a)/d)*(c) * factor * function
     
-    def fitfunction_offset(self,tT,a,b,c,d,e,f):
-        factor = np.exp(-1.0*b/(d*tT[1]+e)) #d*tT[1]+e = alpha*Temp+beta
-        return a * factor * np.exp(-1.0*c*(tT[0]+f)*factor) #tT[0]+f = time + gamma
+    # a = C0 ~ 200
+    # b = E/k ~ 6100 [K]
+    # c = D0 ~ .003 [m^2/s]
+    # d = d ~ [.01 meters]
+    
+    def fitfunction_offset(self,tT,a,b,c,e,tau):
+        
+        dt = tT[0][1] - tT[0][0]  # Assuming t is evenly spaced
+        decay_t = np.arange(0, len(tT[0])) * dt  # Define time for the decay function
+        decay = np.exp(-decay_t/tau) * (decay_t >= 0)
+        Normdecay = decay/np.sum(decay) #Normalize decay function
+        padded_data = np.pad(tT[1], (len(decay)-1, 0), mode='edge')  # Pad data with values similar to edge to resolve boundary issues
+        smooth_step = np.convolve(padded_data, Normdecay, mode='valid') #Convolve two functions
+        
+        factor = np.exp(-1.0*b/(smooth_step)) 
+        return a * e * factor * np.exp(-1.0*c*e*(tT[0])*factor) 
 
     def logfitfunction(self,tT,a,b,c):
         return a - b/tT[1] - c*tT[0]*np.exp(-b/tT[1])
@@ -46,13 +75,31 @@ class Dataset:
         return np.log(a) - b/tT[1] - c*tT[0] #*np.exp(-b/tT[1])
     
     def fitfunction_short(self,tT,a,b,c,d):
-        return a*(np.exp(- b/tT[1])/(tT[0]+c))**d
+        return a*((np.exp(- b/tT[1]))/(tT[0]+c))**(0.5)
 
-    def fitfunction_short_temp_offset(self,tT,a,b,c,e,f):
-        print(np.shape(tT))
-        return a*(np.exp((- b)/(tT[1]*e + f))/(tT[0]+c))**(0.5)
+    
+    
+  
+
+    
+
+        
+    def fitfunction_short_temp_offset(self, tT, a, b, c, tau):
+        
+        dt = tT[0][1] - tT[0][0]  # Assuming t is evenly spaced
+
+        decay_t = np.arange(0, len(tT[0])) * dt  # Define time for the decay function
+        
+        decay = np.exp(-decay_t/tau) * (decay_t >= 0)
+        Normdecay = decay/np.sum(decay) #Normalize decay function
+        padded_data = np.pad(tT[1], (len(decay)-1, 0), mode='edge')  # Pad data with values similar to edge to resolve boundary issues
+        smooth_step = np.convolve(padded_data, Normdecay, mode='valid') #Convolve two functions
+
+        return a*(np.exp((-b)/(smooth_step))/(tT[0]+c))**(0.5) #+ np.exp((-1.0*e*tT[0]))
 
 
+    
+    
     def PlotSingleGas(self, gas, plim=[], tlim=[]):
         plt.figure(figsize=(6,8))
         plt.subplot(2,1,1)

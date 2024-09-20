@@ -3,12 +3,12 @@ import numpy as np
 import matplotlib.pyplot as plt
 from scipy.signal import find_peaks
 
-
 class Dataset:
-    def __init__(self, run_label, gases):
-        self.data_path = '/gpfs/loomis/project/fas/david_moore/aj487/Data_WL110/Outgassing_Setup/'
+    def __init__(self, run_label, gases, data_path):
+        self.data_path = '/gpfs/gibbs/project/david_moore/aj487/Data_WL110/Outgassing_Setup/'
+        self.data_path = self.data_path+data_path
         self.run_label = run_label
-        self.filename = self.data_path + '{}/{}.h5'.format(self.run_label,self.run_label)
+        self.filename = self.data_path + '{}.h5'.format(self.run_label)
         self.gases = gases
     
     def GetData(self):
@@ -19,7 +19,7 @@ class Dataset:
     def FindPeaks(self): 
         self.peak_indices = {}
         for i,gas in enumerate(self.gases):
-            self.peak_indices[gas], _  = find_peaks(np.array(self.data[gas]['pressure']), width=20, distance=100)
+            self.peak_indices[gas], _  = find_peaks(np.array(self.data[gas]['Partial_pressure']), width=20, distance=100)
     
     def GetRanges(self):
         self.range = {}
@@ -34,13 +34,37 @@ class Dataset:
     def fitfunction(self,tT,a,b,c):
         factor = np.exp(-1.0*b/tT[1])
         return a * factor * np.exp(-1.0*c*tT[0]*factor)
+    
+    def fitfunction_offset(self,tT,a,b,c,d,e,f):
+        factor = np.exp(-1.0*b/(d*tT[1]+e)) #d*tT[1]+e = alpha*Temp+beta
+        return a * factor * np.exp(-1.0*c*(tT[0]+f)*factor) #tT[0]+f = time + gamma
+
+    def logfitfunction(self,tT,a,b,c):
+        return a - b/tT[1] - c*tT[0]*np.exp(-b/tT[1])
+
+    def logfitfunction2(self,tT,a,b,c):
+        return np.log(a) - b/tT[1] - c*tT[0] #*np.exp(-b/tT[1])
+    
+    def fitfunction_short(self,tT,a,b,c,d):
+        return a*(np.exp(- b/tT[1])/(tT[0]+c))**d
+
+    def fitfunction_short_temp_offset(self,tT,a,b,c,e,f):
+        print(np.shape(tT))
+        return a*(np.exp((- b)/(tT[1]*e + f))/(tT[0]+c))**(0.5)
 
 
-
-    def PlotSingleGas(self, gas):
-        plt.figure()
+    def PlotSingleGas(self, gas, plim=[], tlim=[]):
+        plt.figure(figsize=(6,8))
+        plt.subplot(2,1,1)
         plt.xlabel('Time since start [s]')
         plt.ylabel('Partial pressure [Torr]')
         plt.yscale('log')
-        plt.plot(self.data[gas]['exp_time'], self.data[gas]['pressure'])
-
+        plt.plot(self.data[gas]['Exposure_time'], self.data[gas]['Partial_pressure'])
+        if(plim):
+            plt.ylim(plim[0], plim[1])
+        plt.subplot(2,1,2)
+        plt.xlabel('Time since start [s]')
+        plt.ylabel('Mean temperature [K]')
+        plt.plot(self.data[gas]['Exposure_time'], self.data[gas]['Mean_temp'])
+        if(tlim):
+            plt.ylim(tlim[0], tlim[1])
